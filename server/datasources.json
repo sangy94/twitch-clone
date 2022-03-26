@@ -2,5 +2,16 @@
   "db": {
     "name": "db",
     "connector": "memory"
+  },
+  "mongo": {
+    "host": "localhost",
+    "port": 27017,
+    "url": "",
+    "database": "twitch-clone-test",
+    "password": "",
+    "name": "mongo",
+    "user": "",
+    "useNewUrlParser": true,
+    "connector": "mongodb"
   }
 }

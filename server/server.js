@@ -10,9 +10,9 @@ const boot = require('loopback-boot');
 
 const app = module.exports = loopback();
 
-app.start = function() {
+app.start = function () {
   // start the web server
-  return app.listen(function() {
+  return app.listen(function () {
     app.emit('started');
     const baseUrl = app.get('url').replace(/\/$/, '');
     console.log('Web server listening at: %s', baseUrl);
@@ -25,7 +25,7 @@ app.start = function() {
 
 // Bootstrap the application, configure models, datasources and middleware.
 // Sub-apps like REST API are mounted via boot scripts.
-boot(app, __dirname, function(err) {
+boot(app, __dirname, function (err) {
   if (err) throw err;
 
   // start the server if `$ node server.js`
@@ -35,15 +35,46 @@ boot(app, __dirname, function(err) {
 
 // start the server if `$ node server.js`
 if (require.main === module) {
+  var users = app.models.users;
+
   app.io = require('socket.io')(app.start());
-  app.io.on('connection', function(socket) {
-  	console.log('a user connected');
-  	socket.on('chat message', function(msg) {
-    	console.log('message: ' + msg);
-    	app.io.emit('chat message', msg);
-  	});
-  	socket.on('disconnect', function() {
-  		console.log('user disconnected');
-  	});
+  app.io.on('connection', function (socket) {
+    console.log('a user connected');
+
+    socket.on('join', function (username, room) {
+      try {
+        const userExists = await users.find({ "username": username, "room": room });
+
+        if (userExists.length > 0) {
+
+        } else {
+          const user = await users.create({
+            "username": username,
+            "room": room,
+            "status": "ONLINE",
+            "socketId": socket.id
+          });
+
+          if (user) {
+            socket.join(user.room);
+            socket.emit('welcome', {
+              user: "bot",
+              text: `${user.username}, Welcome to room ${user.room}`,
+              userData: user
+            });
+            socket.broadcast.to(user.room).emit('message', {
+              user: 'bot',
+              text: `${user.username} has joined`,
+            });           
+          } else {
+
+          }
+        }
+      } catch (err) {
+      }
+    });
+    socket.on('disconnect', function () {
+      console.log('user disconnected');
+    });
   });
 }
