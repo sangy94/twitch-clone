@@ -14,14 +14,15 @@
     ]
   },
   "User": {
-    "dataSource": "db"
+    "dataSource": "mongo",
+    "public": true
   },
   "AccessToken": {
-    "dataSource": "db",
+    "dataSource": "mongo",
     "public": false
   },
   "ACL": {
-    "dataSource": "db",
+    "dataSource": "mongo",
     "public": false
   },
   "RoleMapping": {
@@ -36,7 +37,7 @@
     "public": false
   },
   "users": {
-    "dataSource": null,
+    "dataSource": "mongo",
     "public": true
   }
 }
