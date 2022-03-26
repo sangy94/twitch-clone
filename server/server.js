@@ -30,15 +30,15 @@ boot(app, __dirname, function (err) {
 
    // start the server if `$ node server.js`
    if (require.main === module) {
-      var users = app.models.users;
-   
+      const users = app.models.users;
+
       app.io = require('socket.io')(app.start());
       app.io.on('connection', function (socket) {
-   
-         socket.on('join', async({ username, room }, callback) => {
+
+         socket.on('join', async ({ username, room }, callback) => {
             try {
-               const userExists = await users.find({ where : {"username": username, "room": room} });
-               
+               const userExists = await users.find({ where: { "username": username, "room": room } });
+
                if (userExists.length > 0) {
                   callback(`User ${username} already exists in room no${room}. Please select a different name or room`);
                } else {
@@ -48,7 +48,7 @@ boot(app, __dirname, function (err) {
                      "status": "ONLINE",
                      "socketId": socket.id
                   });
-   
+
                   if (user) {
                      socket.join(user.room);
                      socket.emit('welcome', {
@@ -69,8 +69,27 @@ boot(app, __dirname, function (err) {
                console.log("Error occuried", err);
             }
          });
+
          socket.on('disconnect', function () {
             console.log('user disconnected');
+         });
+
+         socket.on('sendMessage', async (data, callback) => {
+            try {
+               const user = await users.findOne({ where: { id: data.userId } });
+
+               if (user) {
+                  app.io.to(user.room).emit('message', {
+                     user: user.username,
+                     text: data.message,
+                  });
+               } else {
+                  callback(`User doesn't exist in the database. Rejoin the chat`)
+               }
+               callback();
+            } catch (err) {
+               console.log("err inside catch block", err);
+            }
          });
       });
    }
