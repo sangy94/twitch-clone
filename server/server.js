@@ -76,24 +76,24 @@ boot(app, __dirname, function (err) {
          });
 
          //Deleting user after disconnecting
-         socket.on('disconnect', function () {
-            // try {
-            //    const user = await usersModel.destroyAll({ where: { socketId: socketId } })
+         socket.on('disconnect', async function () {
+            try {
+               const userToDelete = await usersModel.findOne({ where: { "socketId": socket.id } })
+               const usersDeleted = await deleteUser(socket.id)
 
-            //    console.log("deleted user is", user);
-            //    if (user.length > 0) {
-            //       io.to(user[0].room).emit('message', {
-            //          user: user[0].username,
-            //          text: `User ${user[0].username} has left the chat.`,
-            //       });
-            //       io.to(user.room).emit('roomInfo', {
-            //          room: user.room,
-            //          users: await getUsersInRoom(user[0].room)
-            //       });
-            //    }
-            // } catch (err) {
-            //    console.log("error while disconnecting", err);
-            // }
+               if (usersDeleted.count > 0) {
+                  app.io.to(userToDelete.room).emit('message', {
+                     user: userToDelete.username,
+                     text: `User ${userToDelete.username} has left the chat.`,
+                  });
+                  app.io.to(userToDelete.room).emit('roomInfo', {
+                     room: userToDelete.room,
+                     users: await getUsersInRoom(userToDelete.room)
+                  });
+               }
+            } catch (err) {
+               console.log("error while disconnecting", err);
+            }
          });
 
          //Broadcasting the messages
@@ -134,12 +134,13 @@ async function getUsersInRoom(room) {
    }
 }
 
-// async function deleteUser(socketId) {
-//    const usersModel = app.models.users;
-//    try {
-//        const user = await usersModel.destroyAll({ socketId: socketId });
-//        return user;
-//    } catch(err) {
-//        console.log("Error while deleting the User", err);
-//    }
-// }
+async function deleteUser(socketId) {
+   const usersModel = app.models.users;
+   try {
+      const userToDelete = await usersModel.findOne({ where: { "socketId": socketId } })
+      const user = await usersModel.destroyById(userToDelete.id);
+      return user;
+   } catch (err) {
+      console.log("Error while deleting the User", err);
+   }
+}
