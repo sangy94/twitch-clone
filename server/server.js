@@ -30,19 +30,20 @@ boot(app, __dirname, function (err) {
 
    // start the server if `$ node server.js`
    if (require.main === module) {
-      const users = app.models.users;
+      const usersModel = app.models.users;
 
       app.io = require('socket.io')(app.start());
       app.io.on('connection', function (socket) {
 
+         //For when a user joins the chat
          socket.on('join', async ({ username, room }, callback) => {
             try {
-               const userExists = await users.find({ where: { "username": username, "room": room } });
+               const userExists = await usersModel.find({ where: { "username": username, "room": room } });
 
                if (userExists.length > 0) {
                   callback(`User ${username} already exists in room no${room}. Please select a different name or room`);
                } else {
-                  const user = await users.create({
+                  const user = await usersModel.create({
                      "username": username,
                      "room": room,
                      "status": "ONLINE",
@@ -60,6 +61,10 @@ boot(app, __dirname, function (err) {
                         user: 'bot',
                         text: `${user.username} has joined`,
                      });
+                     app.io.to(user.room).emit('roomInfo', {
+                        room: user.room,
+                        users: await getUsersInRoom(user.room)
+                     });
                   } else {
                      callback("user could not be created. Try again!")
                   }
@@ -70,18 +75,40 @@ boot(app, __dirname, function (err) {
             }
          });
 
+         //Deleting user after disconnecting
          socket.on('disconnect', function () {
-            console.log('user disconnected');
+            // try {
+            //    const user = await usersModel.destroyAll({ where: { socketId: socketId } })
+
+            //    console.log("deleted user is", user);
+            //    if (user.length > 0) {
+            //       io.to(user[0].room).emit('message', {
+            //          user: user[0].username,
+            //          text: `User ${user[0].username} has left the chat.`,
+            //       });
+            //       io.to(user.room).emit('roomInfo', {
+            //          room: user.room,
+            //          users: await getUsersInRoom(user[0].room)
+            //       });
+            //    }
+            // } catch (err) {
+            //    console.log("error while disconnecting", err);
+            // }
          });
 
+         //Broadcasting the messages
          socket.on('sendMessage', async (data, callback) => {
             try {
-               const user = await users.findOne({ where: { id: data.userId } });
+               const user = await usersModel.findOne({ where: { id: data.userId } });
 
                if (user) {
                   app.io.to(user.room).emit('message', {
                      user: user.username,
                      text: data.message,
+                  });
+                  app.io.to(user.room).emit('roomInfo', {
+                     room: user.room,
+                     users: await getUsersInRoom(user.room)
                   });
                } else {
                   callback(`User doesn't exist in the database. Rejoin the chat`)
@@ -91,7 +118,28 @@ boot(app, __dirname, function (err) {
                console.log("err inside catch block", err);
             }
          });
+
       });
    }
 });
 
+//Function to get users in a room
+async function getUsersInRoom(room) {
+   const usersModel = app.models.users;
+   try {
+      const usersInRoom = await usersModel.find({ where: { "room": room } });
+      return usersInRoom;
+   } catch (err) {
+      console.log("Error.Try again!", err);
+   }
+}
+
+// async function deleteUser(socketId) {
+//    const usersModel = app.models.users;
+//    try {
+//        const user = await usersModel.destroyAll({ socketId: socketId });
+//        return user;
+//    } catch(err) {
+//        console.log("Error while deleting the User", err);
+//    }
+// }
